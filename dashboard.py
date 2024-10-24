@@ -5,6 +5,7 @@ import pandas as pd
 import base64
 import pydeck as pdk
 import plotly.graph_objects as go
+from sklearn.linear_model import LinearRegression
 
 import streamlit as st
 import requests
@@ -12,7 +13,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import functions
 
-st.set_page_config(page_title="PG Dashboard", page_icon="🌟", layout="wide")
+st.set_page_config(page_title="PG Dashboard", page_icon="☁", layout="wide")
 
 # Load the logo image
 logo_path = "smalllogo.png"
@@ -56,9 +57,74 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
+# Load the datasets
+elmagde = pd.read_csv('C:/Users/gayak/Desktop/FMExperiment/FM_Magdeburg/CS110_Electric_Field_Meter.csv', 
+                        names=['id', 'timestamp', 'Efield', 'sensstat', 'curr-na','tempdeg', 'sensvolt','interRH'], header=None)
+elmagde = elmagde[['timestamp', 'Efield']]
+
+file_path = 'C:/Users/gayak/Desktop/FMExperiment/CR1000_Tab60sec.dat'
+
+try:
+    exdf = pd.read_csv(file_path).reset_index()
+    exdf.columns = exdf.iloc[0]
+    exdf = exdf[3:].reset_index(drop=True)
+    exdf = exdf[['TIMESTAMP','E_field_Avg','status']]
+except FileNotFoundError:
+    st.error(f"File '{file_path}' not found.")
+except Exception as e:
+    st.error(f"An error occurred: {e}")
+
+# Process timestamps
+exdf['TIMESTAMP'] = pd.to_datetime(exdf['TIMESTAMP'])
+exdf['timestamp'] = exdf['TIMESTAMP'] + timedelta(hours=2)
+exdf['timestamp'] = pd.to_datetime(exdf['timestamp'])
+exdf['E_field_Avg'] = pd.to_numeric(exdf['E_field_Avg'], errors='coerce')
+
+# Combine the timestamps from both datasets into a single datetime column
+elmagde['timestamp'] = pd.to_datetime(elmagde['timestamp'])
+
+# Specific dates and times for filtering
+date_ranges = [
+    {'Date': '14.08.2024', 'Start': '10:15', 'End': '17:00', 'Location':'N1'},
+    {'Date': '16.08.2024', 'Start': '17:00', 'End': '20:50', 'Location':'N1'},
+    {'Date': '17.08.2024', 'Start': '11:00', 'End': '16:00', 'Location':'N1'},
+    {'Date': '18.08.2024', 'Start': '15:00', 'End': '18:00', 'Location':'N1'},
+    {'Date': '19.08.2024', 'Start': '10:00', 'End': '20:48', 'Location':'N1'},
+    {'Date': '20.08.2024', 'Start': '16:45', 'End': '20:40', 'Location':'N1'},
+    {'Date': '22.08.2024', 'Start': '13:00', 'End': '20:12', 'Location':'N1'},
+    {'Date': '24.08.2024', 'Start': '06:38', 'End': '20:05', 'Location':'N1'},
+    {'Date': '26.08.2024', 'Start': '12:30', 'End': '19:40', 'Location':'N2'},
+    {'Date': '28.08.2024', 'Start': '10:45', 'End': '19:45', 'Location':'N2'},
+    {'Date': '29.08.2024', 'Start': '12:00', 'End': '20:00', 'Location':'N2'},
+    {'Date': '01.09.2024', 'Start': '07:20', 'End': '19:55', 'Location':'N2'},
+    {'Date': '02.09.2024', 'Start': '16:30', 'End': '00:00', 'Location':'N2'},
+    {'Date': '03.09.2024', 'Start': '11:25', 'End': '20:05', 'Location':'N2'},
+    {'Date': '05.09.2024', 'Start': '13:50', 'End': '16:40', 'Location':'Next toEFM'},
+    {'Date': '06.09.2024', 'Start': '18:14', 'End': '19:10', 'Location':'Roof'},
+    {'Date': '07.09.2024', 'Start': '20:50', 'End': '23:59','Location':'Roof'},
+    {'Date': '08.09.2024', 'Start': '00:00', 'End': '23:59','Location':'Roof'},
+    {'Date': '09.09.2024', 'Start': '00:00', 'End': '07:20','Location':'Roof'},
+    {'Date': '16.09.2024', 'Start': '14:11', 'End': '23:59' ,'Location':'Next to EFM/Roof'},
+    {'Date': '17.09.2024', 'Start': '00:00', 'End': '23:59','Location':'Roof'},
+    {'Date': '18.09.2024', 'Start': '00:00', 'End': '13:18','Location':'Roof'},
+    {'Date': '19.09.2024', 'Start': '08:30', 'End': '23:59','Location':'Roof'},
+    {'Date': '20.09.2024', 'Start': '00:00', 'End': '19:00','Location':'Roof'},
+    {'Date': '22.09.2024', 'Start': '07:12', 'End': '23:59','Location':'Roof'},
+    {'Date': '23.09.2024', 'Start': '00:00', 'End': '17:50', 'Location':'Roof'},
+    {'Date': '25.09.2024', 'Start': '14:55', 'End': '18:15','Location':'Bottom of the field'},
+    {'Date': '28.09.2024', 'Start': '13:45', 'End': '19:13', 'Location':'N2'},
+    {'Date': '29.09.2024', 'Start': '10:19', 'End': '18:58','Location':'N2'},
+    {'Date': '04.10.2024', 'Start': '12:00', 'End': '14:50','Location':'N2'},
+    {'Date': '06.10.2024', 'Start': '10:49', 'End': '17:57','Location':'N2'},
+    {'Date': '11.10.2024', 'Start': '10:00', 'End': '18:10','Location':'N2'},
+    {'Date': '12.10.2024', 'Start': '10:30', 'End': '17:57','Location':'N2'},
+    {'Date': '16.10.2024', 'Start': '10:00', 'End': '18:30','Location':'N2'}
+]
+
 # Sidebar
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ("Location", "Plots"))
+page = st.sidebar.radio("Go to", ("Location", "Interactive Plot"))
 
 # Page 1 Content
 if page == "Location":
@@ -128,46 +194,8 @@ if page == "Location":
     st.pydeck_chart(r)
 
 # Page 2 Content
-elif page == "Plots":
+elif page == "Interactive Plot":
     st.title("Interactive Plot - Electric Field Parallel Measurements")
-
-    # Load the datasets
-    elmagde = pd.read_csv('C:/Users/gayak/Desktop/FMExperiment/FM_Magdeburg/CS110_Electric_Field_Meter.csv', 
-                          names=['id', 'timestamp', 'Efield', 'sensstat', 'curr-na','tempdeg', 'sensvolt','interRH'], header=None)
-    elmagde = elmagde[['timestamp', 'Efield']]
-    
-    file_path = 'C:/Users/gayak/Desktop/FMExperiment/CR1000_Tab60sec.dat'
-    
-    try:
-        exdf = pd.read_csv(file_path).reset_index()
-        exdf.columns = exdf.iloc[0]
-        exdf = exdf[3:].reset_index(drop=True)
-        exdf = exdf[['TIMESTAMP','E_field_Avg','status']]
-    except FileNotFoundError:
-        st.error(f"File '{file_path}' not found.")
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
-    
-    # Process timestamps
-    exdf['TIMESTAMP'] = pd.to_datetime(exdf['TIMESTAMP'])
-    exdf['timestamp'] = exdf['TIMESTAMP'] + timedelta(hours=2)
-    exdf['timestamp'] = pd.to_datetime(exdf['timestamp'])
-    exdf['E_field_Avg'] = pd.to_numeric(exdf['E_field_Avg'], errors='coerce')
-
-    # Combine the timestamps from both datasets into a single datetime column
-    elmagde['timestamp'] = pd.to_datetime(elmagde['timestamp'])
-
-    # Specific dates and times for filtering
-    date_ranges = [
-        {'Date': '14.08.2024', 'Start': '10:15', 'End': '17:00'},
-        {'Date': '16.08.2024', 'Start': '17:00', 'End': '20:50'},
-        {'Date': '17.08.2024', 'Start': '11:00', 'End': '16:00'},
-        {'Date': '18.08.2024', 'Start': '15:00', 'End': '18:00'},
-        {'Date': '19.08.2024', 'Start': '10:00', 'End': '20:48'},
-        # Add all remaining entries in this format...
-        {'Date': '16.10.2024', 'Start': '10:00', 'End': '18:30'}
-    ]
-
     # Convert date strings to datetime for filtering
     for date_range in date_ranges:
         date_range['Start'] = datetime.strptime(f"{date_range['Date']} {date_range['Start']}", "%d.%m.%Y %H:%M")
@@ -183,6 +211,8 @@ elif page == "Plots":
     if selected_date_range:
         start_time = selected_date_range['Start']
         end_time = selected_date_range['End']
+        location = selected_date_range['Location']  # Get the location
+
         
         # Adjusted time range: one day before and one day after the selected range
         adjusted_start_time = start_time - timedelta(days=1)
@@ -222,20 +252,96 @@ elif page == "Plots":
         # Update layout to include a secondary y-axis with uniform range
         fig.update_layout(
             title=f'Electric Field Data from {selected_date_range["Start"].strftime("%d.%m.%Y %H:%M")} to {selected_date_range["End"].strftime("%d.%m.%Y %H:%M")}',
-            xaxis_title='Timestamp',
+            xaxis_title='Time(LT)',
             yaxis=dict(
-                title='Electric Field (V/m) - Dataset 1',
+                title='Electric Field (V/m)',
                 range=[min_value, max_value]  # Unified y-axis range
             ),
             yaxis2=dict(
-                title='E Field Avg (V/m) - Dataset 2',
+                title='E Field Avg (V/m)',
                 overlaying='y',
                 side='right',
                 range=[min_value, max_value]  # Unified y-axis range
             ),
             legend=dict(x=0.01, y=0.99),
-            template='plotly_dark'
+            template='plotly_dark',
+            annotations=[  # Add the location as a subtitle
+            dict(
+                text=f"Location: {location}",
+                xref="paper", yref="paper",
+                x=0.5, y=1.05,  # Adjust x and y for positioning
+                showarrow=False,
+                font=dict(size=12)
+            )
+        ]
         )
         
         # Show the plot in Streamlit
-        st.plotly_chart(fig)
+        selected_data = st.plotly_chart(fig, use_container_width=True)
+
+    #sCATTER PLOT
+    if selected_date_range:
+        start_time = selected_date_range['Start']
+        end_time = selected_date_range['End']
+
+        # Filter data for the selected range
+        elmagde_filtered = elmagde[(elmagde['timestamp'] >= start_time) & (elmagde['timestamp'] <= end_time)]
+        exdf_filtered = exdf[(exdf['timestamp'] >= start_time) & (exdf['timestamp'] <= end_time)]
+
+        # Add a time selection slider for scatter plot
+        time_range = st.slider("Select time range for scatter plot:", 
+                                min_value=start_time.time(), 
+                                max_value=end_time.time(), 
+                                value=(start_time.time(), end_time.time()))
+
+        # Create start and end times based on the selected time range
+        start_time_scatter = datetime.combine(start_time.date(), time_range[0])
+        end_time_scatter = datetime.combine(start_time.date(), time_range[1])
+
+        # Filter both datasets based on the selected time range
+        elmagde_scatter = elmagde_filtered[(elmagde_filtered['timestamp'] >= start_time_scatter) & 
+                                        (elmagde_filtered['timestamp'] <= end_time_scatter)]
+        exdf_scatter = exdf_filtered[(exdf_filtered['timestamp'] >= start_time_scatter) & 
+                                    (exdf_filtered['timestamp'] <= end_time_scatter)]
+
+        # Ensure both datasets have the same length
+        min_length = min(len(elmagde_scatter), len(exdf_scatter))
+        elmagde_scatter = elmagde_scatter.iloc[:min_length]
+        exdf_scatter = exdf_scatter.iloc[:min_length]
+
+        # Plot scatter plot if both datasets have data
+        if not elmagde_scatter.empty and not exdf_scatter.empty:
+            # Create the scatter plot
+            plt.figure(figsize=(8, 5))
+            plt.scatter(elmagde_scatter['Efield'], exdf_scatter['E_field_Avg'], color='black', alpha=0.6)
+
+            # Fit a linear regression line
+            X = elmagde_scatter['Efield'].values.reshape(-1, 1)
+            y = exdf_scatter['E_field_Avg'].values
+            model = LinearRegression().fit(X, y)
+            y_pred = model.predict(X)
+
+            # Plot the linear regression line
+            plt.plot(elmagde_scatter['Efield'], y_pred, color='crimson', linewidth=2, label='Fit Line')
+
+            # Calculate and display slope and offset
+            slope = model.coef_[0]
+            intercept = model.intercept_
+            correlation = np.corrcoef(elmagde_scatter['Efield'], exdf_scatter['E_field_Avg'])[0, 1]
+
+            # Add titles and labels
+            plt.title('Scatter Plot of Selected Data')
+            plt.xlabel('Efield Original EFM (V/m)')
+            plt.ylabel('Efield experiment (V/m)')
+            plt.grid(True)
+
+            # Display the statistics on the plot
+            plt.annotate(f'Correlation: {correlation:.2f}\nSlope: {slope:.2f}\nIntercept: {intercept:.2f}',
+                        xy=(0.95, 0.95), xycoords='axes fraction', fontsize=10,
+                        bbox=dict(boxstyle='round,pad=0.3', edgecolor='crimson', facecolor='white'))
+
+            # Show the plot in Streamlit
+            st.pyplot(plt)
+
+        else:
+            st.write("No data available for the selected time range.")
