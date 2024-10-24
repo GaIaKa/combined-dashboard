@@ -1,9 +1,8 @@
 streamlit
 pandas
 numpy
-matplotlib
+matplotlib>=3.5,<4.0
 requests
-base64
 pydeck
 plotly
 sklearn
