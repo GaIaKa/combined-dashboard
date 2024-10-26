@@ -5,5 +5,5 @@ matplotlib>=3.5,<4.0
 requests
 pydeck
 plotly
-sklearn
+scikit-learn
 datetime
