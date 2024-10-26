@@ -7,7 +7,6 @@ import pydeck as pdk
 import plotly.graph_objects as go
 from sklearn.linear_model import LinearRegression
 
-import streamlit as st
 import requests
 import plotly.express as px
 from datetime import datetime, timedelta
@@ -59,11 +58,11 @@ st.markdown(
 
 
 # Load the datasets
-elmagde = pd.read_csv('C:/Users/gayak/Desktop/FMExperiment/FM_Magdeburg/CS110_Electric_Field_Meter.csv', 
+elmagde = pd.read_csv('PGData/CS110_Electric_Field_Meter.csv', 
                         names=['id', 'timestamp', 'Efield', 'sensstat', 'curr-na','tempdeg', 'sensvolt','interRH'], header=None)
 elmagde = elmagde[['timestamp', 'Efield']]
 
-file_path = 'C:/Users/gayak/Desktop/FMExperiment/CR1000_Tab60sec.dat'
+file_path = 'PGData/CR1000_Tab60sec.dat'
 
 try:
     exdf = pd.read_csv(file_path).reset_index()
