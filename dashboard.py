@@ -58,11 +58,11 @@ st.markdown(
 
 
 # Load the datasets
-elmagde = pd.read_csv('PGData/CS110_Electric_Field_Meter.csv', 
-                        names=['id', 'timestamp', 'Efield', 'sensstat', 'curr-na','tempdeg', 'sensvolt','interRH'], header=None)
+elmagde = pd.read_csv('filtered_PG.csv') 
+#names=['id', 'timestamp', 'Efield', 'sensstat', 'curr-na','tempdeg', 'sensvolt','interRH'], header=None)
 elmagde = elmagde[['timestamp', 'Efield']]
 
-file_path = 'PGData/CR1000_Tab60sec.dat'
+file_path = 'CR1000_Tab60sec.dat'
 
 try:
     exdf = pd.read_csv(file_path).reset_index()
