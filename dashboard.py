@@ -277,7 +277,8 @@ elif page == "Interactive Plot":
         
         # Show the plot in Streamlit
         selected_data = st.plotly_chart(fig, use_container_width=True)
-
+    elmagde = elmagde.sort_values(by='timestamp')
+    exdf = exdf.sort_values(by='timestamp')
     #sCATTER PLOT
     if selected_date_range:
         start_time = selected_date_range['Start']
@@ -286,7 +287,7 @@ elif page == "Interactive Plot":
         # Filter data for the selected range
         elmagde_filtered = elmagde[(elmagde['timestamp'] >= start_time) & (elmagde['timestamp'] <= end_time)]
         exdf_filtered = exdf[(exdf['timestamp'] >= start_time) & (exdf['timestamp'] <= end_time)]
-
+        
         # Add a time selection slider for scatter plot
         time_range = st.slider("Select time range for scatter plot:", 
                                 min_value=start_time.time(), 
